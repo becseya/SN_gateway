@@ -26,15 +26,23 @@
     Implementation:    Marcos Yarza
 */
 
+#define INPUT_PIN DIGITAL8
+#define LED_PIN   LED0
+
 void setup()
 {
-    //
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(INPUT_PIN, INPUT);
 }
 
 void loop()
 {
-    Utils.setLED(LED0, LED_OFF);
-    delay(200);
-    Utils.setLED(LED0, LED_ON);
-    delay(200);
+    // toggle
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+
+    // sleep
+    if (digitalRead(INPUT_PIN) == HIGH)
+        delay(200);
+    else
+        delay(1000);
 }
