@@ -1,3 +1,5 @@
+#include <Waspmote.h>
+
 /*
     ------ [Ut_02] Waspmote Using LEDs Example --------
 

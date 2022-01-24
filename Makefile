@@ -22,6 +22,9 @@ ${OUT}: ${TARGET}
 flash: ${TARGET}
 	${WASP_PATH} --pref build.path=${BUILD_PATH} --port ${PORT} --upload ${TARGET}
 
+terminal:
+	minicom -D ${PORT} -b 115200
+
 format-all:
 	clang-format -i ${TARGET}
 
