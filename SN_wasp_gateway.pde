@@ -1,55 +1,57 @@
 /*
- *  ------ WIFI Example --------
- *
- *  Explanation: This example shows how to configure the WiFi module
- *  to join a specific Access Point. So, ESSID and password must be
- *  defined.
- *
- *  Copyright (C) 2016 Libelium Comunicaciones Distribuidas S.L.
- *  http://www.libelium.com
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *  Version:           3.0
- *  Design:            David Gascon
- *  Implementation:    Yuri Carmona
- */
+    ------ WIFI Example --------
 
+    Explanation: This example shows how to set up a TCP client connecting
+    to a MQTT broker  (based on WIFI_PRO example from Libelium)
+
+    Máster IoT-UPM
+
+    Version:           1.0
+*/
+
+// Put your libraries here (#include ...)
+#include <WaspFrame.h>
 #include <WaspWIFI_PRO.h>
+
+#include <Countdown.h>
+#include <FP.h>
+#include <MQTTFormat.h>
+#include <MQTTLogging.h>
+#include <MQTTPacket.h>
+#include <MQTTPublish.h>
+#include <MQTTSubscribe.h>
+#include <MQTTUnsubscribe.h>
 
 // choose socket (SELECT USER'S SOCKET)
 ///////////////////////////////////////
 uint8_t socket = SOCKET1;
 ///////////////////////////////////////
 
-// WiFi AP settings (CHANGE TO USER'S AP)
+// choose TCP server settings
 ///////////////////////////////////////
-char ESSID[] = "SN_grp_11";
-char PASSW[] = "pass1234";
+char HOST[]        = "18.193.126.219"; // broker.hivemq.com
+char REMOTE_PORT[] = "1883";           // MQTT
+char LOCAL_PORT[]  = "3000";
 ///////////////////////////////////////
 
-// define variables
 uint8_t       error;
 uint8_t       status;
 unsigned long previous;
+uint16_t      socket_handle = 0;
+
+uint16_t ciclo = 0;
 
 void setup()
 {
     USB.println(F("Start program"));
+}
+
+void loop()
+{
+    ciclo++;
 
     //////////////////////////////////////////////////
-    // 1. Switch ON the WiFi module
+    // 1. Switch ON
     //////////////////////////////////////////////////
     error = WIFI_PRO.ON(socket);
 
@@ -60,85 +62,136 @@ void setup()
     }
 
     //////////////////////////////////////////////////
-    // 2. Reset to default values
+    // 2. Check if connected
     //////////////////////////////////////////////////
-    error = WIFI_PRO.resetValues();
 
-    if (error == 0) {
-        USB.println(F("2. WiFi reset to default"));
-    } else {
-        USB.println(F("2. WiFi reset to default ERROR"));
-    }
-
-    //////////////////////////////////////////////////
-    // 3. Set ESSID
-    //////////////////////////////////////////////////
-    error = WIFI_PRO.setESSID(ESSID);
-
-    if (error == 0) {
-        USB.println(F("3. WiFi set ESSID OK"));
-    } else {
-        USB.println(F("3. WiFi set ESSID ERROR"));
-    }
-
-    //////////////////////////////////////////////////
-    // 4. Set password key (It takes a while to generate the key)
-    // Authentication modes:
-    //    OPEN: no security
-    //    WEP64: WEP 64
-    //    WEP128: WEP 128
-    //    WPA: WPA-PSK with TKIP encryption
-    //    WPA2: WPA2-PSK with TKIP or AES encryption
-    //////////////////////////////////////////////////
-    error = WIFI_PRO.setPassword(WPA2, PASSW);
-
-    if (error == 0) {
-        USB.println(F("4. WiFi set AUTHKEY OK"));
-    } else {
-        USB.println(F("4. WiFi set AUTHKEY ERROR"));
-    }
-
-    //////////////////////////////////////////////////
-    // 5. Software Reset
-    // Parameters take effect following either a
-    // hardware or software reset
-    //////////////////////////////////////////////////
-    error = WIFI_PRO.softReset();
-
-    if (error == 0) {
-        USB.println(F("5. WiFi softReset OK"));
-    } else {
-        USB.println(F("5. WiFi softReset ERROR"));
-    }
-
-    USB.println(F("*******************************************"));
-    USB.println(F("Once the module is configured with ESSID"));
-    USB.println(F("and PASSWORD, the module will attempt to "));
-    USB.println(F("join the specified Access Point on power up"));
-    USB.println(F("*******************************************\n"));
-
-    // get current time
+    // get actual time
     previous = millis();
-}
 
-void loop()
-{
+    // check connectivity
+    status = WIFI_PRO.isConnected();
+
+    // check if module is connected
+    if (status == true) {
+        USB.print(F("2. WiFi is connected OK"));
+        USB.print(F(" Time(ms):"));
+        USB.println(millis() - previous);
+
+        // get IP address
+        error = WIFI_PRO.getIP();
+
+        if (error == 0) {
+            USB.print(F("IP address: "));
+            USB.println(WIFI_PRO._ip);
+        } else {
+            USB.println(F("getIP error"));
+        }
+    } else {
+        USB.print(F("2. WiFi is connected ERROR"));
+        USB.print(F(" Time(ms):"));
+        USB.println(millis() - previous);
+    }
+
     //////////////////////////////////////////////////
-    // Join AP
+    // 3. TCP
     //////////////////////////////////////////////////
 
     // Check if module is connected
-    if (WIFI_PRO.isConnected() == true) {
-        USB.print(F("WiFi is connected OK"));
-        USB.print(F(" Time(ms):"));
-        USB.println(millis() - previous);
+    if (status == true) {
 
-        USB.println(F("\n*** Program stops ***"));
-        while (1) {
+        ////////////////////////////////////////////////
+        // 3.1. Open TCP socket
+        ////////////////////////////////////////////////
+        error = WIFI_PRO.setTCPclient(HOST, REMOTE_PORT, LOCAL_PORT);
+
+        // check response
+        if (error == 0) {
+            // get socket handle (from 0 to 9)
+            socket_handle = WIFI_PRO._socket_handle;
+
+            USB.print(F("3.1. Open TCP socket OK in handle: "));
+            USB.println(socket_handle, DEC);
+        } else {
+            USB.println(F("3.1. Error calling 'setTCPclient' function"));
+            WIFI_PRO.printErrorCode();
+            status = false;
         }
-    } else {
-        USB.print(F("WiFi is connected ERROR"));
-        USB.print(F(" Time(ms):"));
-        USB.println(millis() - previous);
     }
+
+    if (status == true) {
+        /// Publish MQTT
+        MQTTPacket_connectData data        = MQTTPacket_connectData_initializer;
+        MQTTString             topicString = MQTTString_initializer;
+        unsigned char          buf[200];
+        int                    buflen = sizeof(buf);
+        unsigned char          payload[100];
+
+        // options
+        data.clientID.cstring  = (char*)"mt1";
+        data.keepAliveInterval = 30;
+        data.cleansession      = 1;
+        int len                = MQTTSerialize_connect(buf, buflen, &data); /* 1 */
+
+        // Topic and message
+        topicString.cstring = (char*)"g11/temperature";
+        snprintf((char*)payload, 100, "%s%d", "Mota1 #", ciclo);
+        int payloadlen = strlen((const char*)payload);
+
+        len += MQTTSerialize_publish(buf + len, buflen - len, 0, 0, 0, 0, topicString, payload, payloadlen); /* 2 */
+
+        len += MQTTSerialize_disconnect(buf + len, buflen - len); /* 3 */
+
+        ////////////////////////////////////////////////
+        // 3.2. send data
+        ////////////////////////////////////////////////
+        error = WIFI_PRO.send(socket_handle, buf, len);
+
+        // check response
+        if (error == 0) {
+            USB.println(F("3.2. Send data OK"));
+        } else {
+            USB.println(F("3.2. Error calling 'send' function"));
+            WIFI_PRO.printErrorCode();
+        }
+
+        ////////////////////////////////////////////////
+        // 3.3. Wait for answer from server
+        ////////////////////////////////////////////////
+        /*      USB.println(F("Listen to TCP socket:"));
+              error = WIFI_PRO.receive(socket_handle, 30000);
+
+              // check answer
+              if (error == 0)
+              {
+                USB.println(F("\n========================================"));
+                USB.print(F("Data: "));
+                USB.println( WIFI_PRO._buffer, WIFI_PRO._length);
+
+                USB.print(F("Length: "));
+                USB.println( WIFI_PRO._length,DEC);
+                USB.println(F("========================================"));
+              }
+        */
+    }
+    ////////////////////////////////////////////////
+    // 3.4. close socket
+    ////////////////////////////////////////////////
+    error = WIFI_PRO.closeSocket(socket_handle);
+
+    // check response
+    if (error == 0) {
+        USB.println(F("3.3. Close socket OK"));
+    } else {
+        USB.println(F("3.3. Error calling 'closeSocket' function"));
+        WIFI_PRO.printErrorCode();
+    }
+
+    //////////////////////////////////////////////////
+    // 4. Switch OFF
+    //////////////////////////////////////////////////
+    USB.println(F("WiFi switched OFF\n\n"));
+    WIFI_PRO.OFF(socket);
+
+    USB.println(F("Wait 1 seconds...\n"));
+    delay(1000);
 }
