@@ -153,25 +153,6 @@ void loop()
             USB.println(F("3.2. Error calling 'send' function"));
             WIFI_PRO.printErrorCode();
         }
-
-        ////////////////////////////////////////////////
-        // 3.3. Wait for answer from server
-        ////////////////////////////////////////////////
-        /*      USB.println(F("Listen to TCP socket:"));
-              error = WIFI_PRO.receive(socket_handle, 30000);
-
-              // check answer
-              if (error == 0)
-              {
-                USB.println(F("\n========================================"));
-                USB.print(F("Data: "));
-                USB.println( WIFI_PRO._buffer, WIFI_PRO._length);
-
-                USB.print(F("Length: "));
-                USB.println( WIFI_PRO._length,DEC);
-                USB.println(F("========================================"));
-              }
-        */
     }
     ////////////////////////////////////////////////
     // 3.4. close socket
