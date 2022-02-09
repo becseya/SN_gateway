@@ -1,12 +1,11 @@
 /*
-    ------ WIFI Example --------
+    Akos Becsey
+    GROUP 22
+    Sensor Networks
 
-    Explanation: This example shows how to set up a TCP client connecting
-    to a MQTT broker  (based on WIFI_PRO example from Libelium)
+    Explanation: Sending sensor data received by Zigbee to ThingSpeak by MQTT
 
     Máster IoT-UPM
-
-    Version:           1.0
 */
 
 // Put your libraries here (#include ...)
