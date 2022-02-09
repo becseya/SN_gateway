@@ -23,6 +23,20 @@
 #include <MQTTSubscribe.h>
 #include <MQTTUnsubscribe.h>
 
+struct SensorData
+{
+    bool  presence;
+    bool  freefall;
+    bool  batteryAlarm;
+    int   battery;
+    int   accX;
+    int   accY;
+    int   accZ;
+    float humidity;
+    float temperature;
+    float pressure;
+};
+
 // choose socket (SELECT USER'S SOCKET)
 ///////////////////////////////////////
 uint8_t socket = SOCKET1;
@@ -35,6 +49,9 @@ char REMOTE_PORT[] = "1883";           // MQTT
 char LOCAL_PORT[]  = "3000";
 ///////////////////////////////////////
 
+char    upstreamBuffer[100];
+uint8_t upstreamBufferFieldCounter;
+
 uint8_t       error;
 uint8_t       status;
 unsigned long previous;
@@ -43,6 +60,75 @@ uint16_t      socket_handle = 0;
 uint16_t ciclo = 0;
 
 bool socketOpen = false;
+
+SensorData sensorData;
+
+// ------------------------------------------------------------------------------------------------
+
+void upstreamBufferReset()
+{
+    upstreamBufferFieldCounter = 0;
+    upstreamBuffer[0]          = '\0';
+}
+
+void _upstreamBufferAppendCommon()
+{
+    if (upstreamBufferFieldCounter > 0)
+        strcat(upstreamBuffer, "&");
+
+    sprintf(upstreamBuffer + strlen(upstreamBuffer), "field%d=", upstreamBufferFieldCounter + 1);
+    upstreamBufferFieldCounter++;
+}
+
+void upstreamBufferAppend(float& value)
+{
+    _upstreamBufferAppendCommon();
+    sprintf(upstreamBuffer + strlen(upstreamBuffer), "%.1f", value);
+}
+
+void upstreamBufferAppend(int& value)
+{
+    _upstreamBufferAppendCommon();
+    sprintf(upstreamBuffer + strlen(upstreamBuffer), "%d", value);
+}
+
+const char* getFieldStart(const char* buffer, const char* prefix)
+{
+    char* ptr = strstr(buffer, prefix);
+
+    if (ptr)
+        return (ptr + strlen(prefix));
+    else
+        return nullptr;
+}
+
+void parseMessage(const char* buffer, SensorData* data)
+{
+    const char* ptr;
+
+    data->presence = strstr(buffer, "#STR:PRESENCE");
+    data->freefall = strstr(buffer, "#STR:FREE FALL");
+
+    if (ptr = getFieldStart(buffer, "#BAT:")) {
+        sscanf(ptr, "%d", &data->battery);
+        if (data->battery < 20)
+            data->batteryAlarm = true;
+    }
+
+    if (ptr = getFieldStart(buffer, "#ACC:"))
+        sscanf(ptr, "%d;%d;%d", &data->accX, &data->accY, &data->accZ);
+
+    if (ptr = getFieldStart(buffer, "#TC:"))
+        sscanf(ptr, "%f", &data->temperature);
+
+    if (ptr = getFieldStart(buffer, "#HUM:"))
+        sscanf(ptr, "%f", &data->humidity);
+
+    if (ptr = getFieldStart(buffer, "#PRES:"))
+        sscanf(ptr, "%f", &data->pressure);
+}
+
+// ------------------------------------------------------------------------------------------------
 
 void setup()
 {
@@ -140,6 +226,19 @@ void loop()
         xbee802._payload[xbee802._length] = '\0';
         USB.println((const char*)xbee802._payload);
 
+        parseMessage((const char*)xbee802._payload, &sensorData);
+
+        upstreamBufferReset();
+        upstreamBufferAppend(sensorData.temperature);
+        upstreamBufferAppend(sensorData.humidity);
+        upstreamBufferAppend(sensorData.pressure);
+        upstreamBufferAppend(sensorData.battery);
+        upstreamBufferAppend(sensorData.accX);
+        upstreamBufferAppend(sensorData.accY);
+        upstreamBufferAppend(sensorData.accZ);
+
+        USB.print(F("Upstream data: "));
+        USB.println(upstreamBuffer);
     } else {
         // Print error message:
         /*
