@@ -130,6 +130,22 @@ void parseMessage(const char* buffer, SensorData* data)
         sscanf(ptr, "%f", &data->pressure);
 }
 
+int getAlarmFlags(const SensorData& data)
+{
+    int alarms = 0;
+
+    if (data.presence)
+        alarms |= (1 << 0);
+
+    if (data.freefall)
+        alarms |= (1 << 1);
+
+    if (data.batteryAlarm)
+        alarms |= (1 << 2);
+
+    return alarms;
+}
+
 // ------------------------------------------------------------------------------------------------
 
 void setup()
@@ -229,6 +245,7 @@ void loop()
         USB.println((const char*)xbee802._payload);
 
         parseMessage((const char*)xbee802._payload, &sensorData);
+        int alarmFlags = getAlarmFlags(sensorData);
 
         upstreamBufferReset();
         upstreamBufferAppend(sensorData.temperature);
@@ -238,6 +255,7 @@ void loop()
         upstreamBufferAppend(sensorData.accX);
         upstreamBufferAppend(sensorData.accY);
         upstreamBufferAppend(sensorData.accZ);
+        upstreamBufferAppend(alarmFlags);
 
         USB.print(F("Upstream data: "));
         USB.println(upstreamBuffer);
