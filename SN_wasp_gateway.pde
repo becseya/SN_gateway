@@ -44,9 +44,12 @@ uint8_t socket = SOCKET1;
 
 // choose TCP server settings
 ///////////////////////////////////////
-char HOST[]        = "18.193.126.219"; // broker.hivemq.com
-char REMOTE_PORT[] = "1883";           // MQTT
+char HOST[]        = "54.211.50.115"; // mqtt.thingspeak.com
+char REMOTE_PORT[] = "1883";          // MQTT
 char LOCAL_PORT[]  = "3000";
+
+char MQTT_TOPIC[] = "channels/1644085/publish/Q8JEMD2BZN7S5S12";
+
 ///////////////////////////////////////
 
 char    upstreamBuffer[100];
@@ -262,7 +265,6 @@ void loop()
         MQTTString             topicString = MQTTString_initializer;
         unsigned char          buf[200];
         int                    buflen = sizeof(buf);
-        unsigned char          payload[100];
 
         // options
         data.clientID.cstring  = (char*)"mt1";
@@ -274,9 +276,9 @@ void loop()
             len = MQTTSerialize_connect(buf, buflen, &data); /* 1 */
 
         // Topic and message
-        topicString.cstring = (char*)"g11/temperature";
-        snprintf((char*)payload, 100, "%s%d", "Mota1 #", ciclo);
-        int payloadlen = strlen((const char*)payload);
+        topicString.cstring       = MQTT_TOPIC;
+        unsigned char* payload    = (unsigned char*)upstreamBuffer;
+        int            payloadlen = strlen(upstreamBuffer);
 
         len += MQTTSerialize_publish(buf + len, buflen - len, 0, 0, 0, 0, topicString, payload, payloadlen); /* 2 */
 
