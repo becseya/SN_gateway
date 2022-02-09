@@ -12,6 +12,7 @@
 // Put your libraries here (#include ...)
 #include <WaspFrame.h>
 #include <WaspWIFI_PRO.h>
+#include <WaspXBee802.h>
 
 #include <Countdown.h>
 #include <FP.h>
@@ -46,6 +47,9 @@ bool socketOpen = false;
 void setup()
 {
     USB.println(F("Start program"));
+
+    // init XBee
+    xbee802.ON();
 }
 
 void loop()
@@ -107,7 +111,7 @@ void loop()
             ////////////////////////////////////////////////
             error = WIFI_PRO.setTCPclient(HOST, REMOTE_PORT, LOCAL_PORT);
 
-            LOCAL_PORT[3]= (LOCAL_PORT[3] == '9') ? '0': (LOCAL_PORT[3]+1);
+            LOCAL_PORT[3] = (LOCAL_PORT[3] == '9') ? '0' : (LOCAL_PORT[3] + 1);
 
             // check response
             if (error == 0) {
@@ -125,7 +129,33 @@ void loop()
         }
     }
 
-    if (socketOpen) {
+    // receive XBee packet (wait for 10 seconds)
+    error = xbee802.receivePacketTimeout(10000);
+
+    // check answer
+    if (error == 0) {
+        // Show data stored in '_payload' buffer indicated by '_length'
+        USB.print(F("Data: "));
+
+        xbee802._payload[xbee802._length] = '\0';
+        USB.println((const char*)xbee802._payload);
+
+    } else {
+        // Print error message:
+        /*
+         * '7' : Buffer full. Not enough memory space
+         * '6' : Error escaping character within payload bytes
+         * '5' : Error escaping character in checksum byte
+         * '4' : Checksum is not correct
+         * '3' : Checksum byte is not available
+         * '2' : Frame Type is not valid
+         * '1' : Timeout when receiving answer
+         */
+        USB.print(F("Error receiving a packet:"));
+        USB.println(error, DEC);
+    }
+
+    if (socketOpen && (error == 0)) {
         static bool socketWasOpen = false;
 
         /// Publish MQTT
