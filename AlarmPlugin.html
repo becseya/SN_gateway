@@ -1,0 +1,64 @@
+<html>
+
+<head>
+    <style type="text/css">
+        body {
+            background-color: #fff;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+    <script type="text/javascript">
+
+        let alarms = [false, false, false];
+
+        function updateGUI() {
+            for (i = 0; i < 3; i++)
+                $('#alarm' + i).text(alarms[i] ? "ON" : "OFF")
+        }
+
+        function updateAPI() {
+            $.getJSON('https://api.thingspeak.com/channels/1644085/feed/last.json?api_key=BBB64D3J078XXHMQ', (data) => {
+                let alarmFlag = data.field8;
+
+                // console.log('Flags: ' + alarmFlag);
+
+                for (i = 0; i < 3; i++)
+                    if (alarmFlag & (1 << i))
+                        alarms[i] = true
+
+                updateGUI();
+            });
+        }
+
+        function resetBtn() {
+            alarms = [false, false, false];
+            updateGUI();
+        }
+
+        updateAPI();
+        setInterval(updateAPI, 4000);
+    </script>
+</head>
+
+<body>
+    <table>
+        <tr>
+            <td>Presence</td>
+            <td id="alarm0"></td>
+        </tr>
+        <tr>
+            <td>Free fall</td>
+            <td id="alarm1"></td>
+        </tr>
+        <tr>
+            <td>Battery</td>
+            <td id="alarm2"></td>
+        </tr>
+    </table>
+
+    <button onclick="resetBtn()" type="button">Reset</button>
+</body>
+
+</html>
